@@ -9,6 +9,7 @@ const {
   transferCustody,
   verifyIntegrity,
   batchVerify,
+  downloadEvidence,
 } = require('../controllers/evidenceController');
 
 // All evidence routes require authentication
@@ -37,5 +38,11 @@ router.post('/:id/transfer', restrictTo('admin', 'investigator'), transferCustod
 
 // POST /api/evidence/:id/verify   — verify SHA-256 integrity
 router.post('/:id/verify', verifyIntegrity);
+
+router.get(
+  "/:id/download",
+  protect,
+  downloadEvidence
+);
 
 module.exports = router;

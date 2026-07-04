@@ -1,7 +1,8 @@
 const {
   uploadFile,
   downloadFile,
-  deleteFile
+  deleteFile,
+  generateDownloadUrl,
 } = require("../services/s3Service");
 const fs = require('fs');
 const path = require('path');
@@ -397,4 +398,43 @@ const batchVerify = async (req, res) => {
   res.status(200).json({ success: true, results });
 };
 
-module.exports = { uploadEvidence, getEvidence, getEvidenceById, transferCustody, verifyIntegrity, batchVerify };
+const downloadEvidence = async (req, res) => {
+  try {
+    const evidence = await Evidence.findById(req.params.id);
+
+    if (!evidence || evidence.isDeleted) {
+      return res.status(404).json({
+        success: false,
+        message: "Evidence not found.",
+      });
+    }
+
+    // Investigators can only download their own evidence
+    if (
+      req.user.role !== "admin" &&
+      String(evidence.currentCustodian) !== String(req.user._id) &&
+      String(evidence.uploadedBy) !== String(req.user._id)
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied.",
+      });
+    }
+
+    const url = await generateDownloadUrl(evidence.s3Key);
+
+    res.json({
+      success: true,
+      downloadUrl: url,
+      expiresIn: 300,
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+module.exports = { uploadEvidence, getEvidence, getEvidenceById, transferCustody, verifyIntegrity, batchVerify, downloadEvidence };

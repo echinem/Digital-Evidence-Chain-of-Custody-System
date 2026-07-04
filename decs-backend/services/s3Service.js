@@ -1,3 +1,5 @@
+const { GetObjectCommand } = require("@aws-sdk/client-s3");
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const {
     PutObjectCommand,
     DeleteObjectCommand,
@@ -63,8 +65,22 @@ const deleteFile = async (key) => {
     );
 };
 
+const generateDownloadUrl = async (key) => {
+    const command = new GetObjectCommand({
+        Bucket: process.env.S3_BUCKET_NAME,
+        Key: key,
+    });
+
+    const url = await getSignedUrl(s3, command, {
+        expiresIn: 300, // 5 minutes
+    });
+
+    return url;
+};
+
 module.exports = {
     uploadFile,
     downloadFile,
     deleteFile,
+    generateDownloadUrl,
 };
