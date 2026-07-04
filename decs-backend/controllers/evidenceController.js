@@ -39,10 +39,11 @@ const uploadEvidence = async (req, res) => {
       }
 
       let s3Result;
+      let evidence;
 
       try {
         s3Result = await uploadFile(file, caseId);
-        const evidence = await Evidence.create({
+        evidence = await Evidence.create({
           name: req.files.length === 1 ? name : `${name} — ${file.originalname}`,
           description,
           caseId: caseId.toUpperCase(),
