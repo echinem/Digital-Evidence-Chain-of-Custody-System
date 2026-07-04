@@ -1,7 +1,7 @@
 const {
-    uploadFile,
-    downloadFile,
-    deleteFile
+  uploadFile,
+  downloadFile,
+  deleteFile
 } = require("../services/s3Service");
 const fs = require('fs');
 const path = require('path');
@@ -73,7 +73,7 @@ const uploadEvidence = async (req, res) => {
 
 
 
-      //fs.unlink(file.path, () => { });
+      fs.unlink(file.path, () => { });
 
       // Record custody log
       await CustodyLog.create({
@@ -288,13 +288,13 @@ const verifyIntegrity = async (req, res) => {
 
     // Compute SHA-256
     const {
-        match,
-        calculatedHash,
-        storedHash
+      match,
+      calculatedHash,
+      storedHash
     } = await verifyFileHash(tempFile, evidence.hash);
 
     // Clean up temporary file
-    fs.unlink(tempFile, () => {});
+    fs.unlink(tempFile, () => { });
 
     // Update evidence integrity status
     evidence.integrityLastChecked = new Date();
@@ -372,16 +372,16 @@ const batchVerify = async (req, res) => {
       const evidence = await Evidence.findById(id);
 
       if (!evidence) {
-          results.push({ id, error: "Evidence not found" });
-          continue;
+        results.push({ id, error: "Evidence not found" });
+        continue;
       }
 
       const tempFile = await downloadFile(evidence.s3Key);
 
       const { match, calculatedHash } =
-          await verifyFileHash(tempFile, evidence.hash);
+        await verifyFileHash(tempFile, evidence.hash);
 
-      fs.unlink(tempFile, () => {});
+      fs.unlink(tempFile, () => { });
       evidence.integrityLastChecked = new Date();
       evidence.integrityStatus = match ? 'intact' : 'compromised';
       if (!match) evidence.status = 'compromised';
