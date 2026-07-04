@@ -1,4 +1,8 @@
-const { uploadFile, downloadFile, deleteFile } = require("../services/s3Service");
+const {
+    uploadFile,
+    downloadFile,
+    deleteFile
+} = require("../services/s3Service");
 const fs = require('fs');
 const path = require('path');
 const Evidence = require('../models/Evidence');
@@ -279,12 +283,17 @@ const verifyIntegrity = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Evidence not found.' });
     }
 
-    // Download file from S3 and re-compute SHA-256 hash
+    // Download the file from S3 to a temporary location
     const tempFile = await downloadFile(evidence.s3Key);
 
-    const { match, calculatedHash, storedHash } = await verifyFileHash(tempFile, evidence.hash);
+    // Compute SHA-256
+    const {
+        match,
+        calculatedHash,
+        storedHash
+    } = await verifyFileHash(tempFile, evidence.hash);
 
-    // remove temp file
+    // Clean up temporary file
     fs.unlink(tempFile, () => {});
 
     // Update evidence integrity status
