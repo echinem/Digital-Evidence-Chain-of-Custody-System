@@ -13,7 +13,7 @@ const User = require('../models/User');
 const { hashFile, verifyFileHash } = require('../utils/hash');
 const { createAuditLog } = require('../middleware/audit');
 const { sendCustodyTransferEmail, sendIntegrityAlertEmail } = require('../utils/email');
-
+const { publishNotification } = require("../services/snsService");
 // POST /api/evidence  — upload one or more files
 const uploadEvidence = async (req, res) => {
   if (!req.files || req.files.length === 0) {
@@ -95,6 +95,21 @@ const uploadEvidence = async (req, res) => {
         ipAddress: req.ip,
       });
 
+      try {
+        await publishNotification(
+          "Evidence Uploaded",
+          `New evidence uploaded.
+
+Case ID: ${caseId}
+
+Evidence: ${evidence.name}
+
+Uploaded by: ${req.user.name}`
+        );
+      } catch (err) {
+        console.error("SNS notification failed:", err);
+      }
+
       results.push({ file: file.originalname, evidence: await evidence.populate('currentCustodian uploadedBy', 'name email role') });
     }
 
@@ -110,6 +125,8 @@ const uploadEvidence = async (req, res) => {
     res.status(500).json({ success: false, message: 'Upload failed: ' + error.message });
   }
 };
+
+
 
 // GET /api/evidence  — list evidence (admin sees all, investigator sees own)
 const getEvidence = async (req, res) => {
@@ -196,6 +213,17 @@ const getEvidenceById = async (req, res) => {
       details: `Viewed evidence: ${evidence.name}`,
       ipAddress: req.ip,
     });
+
+    await publishNotification(
+      "Evidence Uploaded",
+      `New evidence uploaded.
+
+        Case ID: ${caseId}
+
+        Evidence: ${evidence.name}
+
+        Uploaded by: ${req.user.name}`
+    );
 
     res.status(200).json({ success: true, evidence, custodyLogs, integrityLogs });
   } catch (error) {
