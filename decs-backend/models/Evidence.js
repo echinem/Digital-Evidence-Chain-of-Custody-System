@@ -52,6 +52,12 @@ const evidenceSchema = new mongoose.Schema(
       required: true,
       select: false, // internal server path, not exposed to clients
     },
+    s3Key: {
+      type: String,
+    },
+    s3Url: {
+      type: String,
+    },
     fileSize: {
       type: Number, // in bytes
       required: true,

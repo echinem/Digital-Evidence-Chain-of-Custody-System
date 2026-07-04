@@ -1,3 +1,4 @@
+const { uploadFile, deleteFile } = require("../services/s3Service");
 const fs = require('fs');
 const path = require('path');
 const Evidence = require('../models/Evidence');
@@ -18,7 +19,7 @@ const uploadEvidence = async (req, res) => {
 
   if (!name || !caseId || !acquisitionDate || !fileType) {
     // Clean up uploaded files
-    req.files.forEach(f => fs.unlink(f.path, () => {}));
+    req.files.forEach(f => fs.unlink(f.path, () => { }));
     return res.status(400).json({ success: false, message: 'name, caseId, acquisitionDate, and fileType are required.' });
   }
 
@@ -32,27 +33,42 @@ const uploadEvidence = async (req, res) => {
       // Check for duplicate hash (same file already in system)
       const existing = await Evidence.findOne({ hash });
       if (existing) {
-        fs.unlink(file.path, () => {});
+        fs.unlink(file.path, () => { });
         results.push({ file: file.originalname, error: 'Duplicate: file with identical hash already exists', existingId: existing._id });
         continue;
       }
 
-      const evidence = await Evidence.create({
-        name: req.files.length === 1 ? name : `${name} — ${file.originalname}`,
-        description,
-        caseId: caseId.toUpperCase(),
-        acquisitionDate: new Date(acquisitionDate),
-        fileType,
-        fileName: file.filename,
-        originalName: file.originalname,
-        filePath: file.path,
-        fileSize: file.size,
-        mimeType: file.mimetype,
-        hash,
-        hashAlgorithm: 'SHA-256',
-        currentCustodian: req.user._id,
-        uploadedBy: req.user._id,
-      });
+      let s3Result;
+
+      try {
+        s3Result = await uploadFile(file, caseId);
+        const evidence = await Evidence.create({
+          name: req.files.length === 1 ? name : `${name} — ${file.originalname}`,
+          description,
+          caseId: caseId.toUpperCase(),
+          acquisitionDate: new Date(acquisitionDate),
+          fileType,
+          fileName: file.filename,
+          originalName: file.originalname,
+          filePath: file.path,
+          s3Key: s3Result.key,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+          hash,
+          hashAlgorithm: 'SHA-256',
+          currentCustodian: req.user._id,
+          uploadedBy: req.user._id,
+        });
+      } catch (err) {
+        if (s3Result) {
+          await deleteFile(s3Result.key);
+        }
+        throw err;
+      }
+
+
+
+      //fs.unlink(file.path, () => { });
 
       // Record custody log
       await CustodyLog.create({
@@ -83,7 +99,7 @@ const uploadEvidence = async (req, res) => {
     });
   } catch (error) {
     // Clean up files on error
-    req.files.forEach(f => fs.unlink(f.path, () => {}));
+    req.files.forEach(f => fs.unlink(f.path, () => { }));
     console.error('Upload error:', error);
     res.status(500).json({ success: false, message: 'Upload failed: ' + error.message });
   }
