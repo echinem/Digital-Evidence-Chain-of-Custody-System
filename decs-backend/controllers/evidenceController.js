@@ -369,12 +369,19 @@ const batchVerify = async (req, res) => {
   const results = [];
   for (const id of evidenceIds) {
     try {
-      const evidence = await Evidence.findById(id).select('+filePath');
-      if (!evidence || !fs.existsSync(evidence.filePath)) {
-        results.push({ id, error: 'File not found' });
-        continue;
+      const evidence = await Evidence.findById(id);
+
+      if (!evidence) {
+          results.push({ id, error: "Evidence not found" });
+          continue;
       }
-      const { match, calculatedHash } = await verifyFileHash(evidence.filePath, evidence.hash);
+
+      const tempFile = await downloadFile(evidence.s3Key);
+
+      const { match, calculatedHash } =
+          await verifyFileHash(tempFile, evidence.hash);
+
+      fs.unlink(tempFile, () => {});
       evidence.integrityLastChecked = new Date();
       evidence.integrityStatus = match ? 'intact' : 'compromised';
       if (!match) evidence.status = 'compromised';
