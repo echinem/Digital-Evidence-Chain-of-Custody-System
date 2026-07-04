@@ -1,4 +1,4 @@
-const { uploadFile, deleteFile } = require("../services/s3Service");
+const { uploadFile, downloadFile, deleteFile } = require("../services/s3Service");
 const fs = require('fs');
 const path = require('path');
 const Evidence = require('../models/Evidence');
@@ -279,13 +279,13 @@ const verifyIntegrity = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Evidence not found.' });
     }
 
-    // Check file exists on disk
-    if (!fs.existsSync(evidence.filePath)) {
-      return res.status(404).json({ success: false, message: 'Evidence file not found on storage. It may have been moved or deleted.' });
-    }
+    // Download file from S3 and re-compute SHA-256 hash
+    const tempFile = await downloadFile(evidence.s3Key);
 
-    // Re-compute SHA-256 hash
-    const { match, calculatedHash, storedHash } = await verifyFileHash(evidence.filePath, evidence.hash);
+    const { match, calculatedHash, storedHash } = await verifyFileHash(tempFile, evidence.hash);
+
+    // remove temp file
+    fs.unlink(tempFile, () => {});
 
     // Update evidence integrity status
     evidence.integrityLastChecked = new Date();
